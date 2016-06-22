@@ -72,13 +72,44 @@ namespace log4cpp {
 
 	void DailyRollingFileAppender::rollOver()
 	{
+		/************************************************************************/
+		/*  fix multiple processes bug in linux. begin.                         */
+		/*  by Revo                                                             */
+		/************************************************************************/
+#ifndef WIN32
+		char buf[1024] = { '\0' };
+		char file_path[1024] = { '\0' };
+		snprintf(buf, sizeof(buf), "/proc/self/fd/%d", _fd);
+		readlink(buf, file_path, sizeof(file_path)-1);
+		std::string fd_filepath(file_path);
+#endif
+		/************************************************************************/
+		/*  fix multiple processes bug in linux. end.                           */
+		/*  by Revo                                                             */
+		/************************************************************************/
+
 		std::ostringstream filename_s;
 		::close(_fd);
 		filename_s << _fileName << "." << _logsTime.tm_year + 1900 << "-"
 						<< std::setfill('0') << std::setw(2) << _logsTime.tm_mon + 1 << "-"
 						<< std::setw(2) << _logsTime.tm_mday << std::ends;
 		const std::string lastFn = filename_s.str();
+		/************************************************************************/
+		/*  fix multiple processes bug in linux. begin.                         */
+		/*  by Revo                                                             */
+		/************************************************************************/
+#ifndef WIN32
+		if (0 != strcmp(fd_filepath.c_str(), lastFn.c_str()))
+		{
+			::rename(_fileName.c_str(), lastFn.c_str());
+		}
+#else
 		::rename(_fileName.c_str(), lastFn.c_str());
+#endif
+		/************************************************************************/
+		/*  fix multiple processes bug in linux. end.                           */
+		/*  by Revo                                                             */
+		/************************************************************************/
 
 		_fd = ::open(_fileName.c_str(), _flags, _mode);
 
